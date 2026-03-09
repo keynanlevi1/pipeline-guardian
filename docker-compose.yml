@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  pipeline-guardian:
+    build: .
+    environment:
+      - JENKINS_URL=${JENKINS_URL}
+      - JENKINS_USER=${JENKINS_USER}
+      - JENKINS_TOKEN=${JENKINS_TOKEN}
+      - JENKINS_MCP_PATH=${JENKINS_MCP_PATH:-/mcp-server/mcp}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - AI_PROVIDER=${AI_PROVIDER:-anthropic}
+      - AI_MODEL=${AI_MODEL:-claude-sonnet-4-20250514}
+    volumes:
+      - ./src:/app/src
+    command: ["status"]
