@@ -34,6 +34,8 @@ dependencies = [
     "pydantic>=2.0.0",
     "pydantic-settings>=2.0.0",
     "python-dotenv>=1.0.0",
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.29.0",
 ]
 
 [project.optional-dependencies]
@@ -47,6 +49,7 @@ dev = [
 [project.scripts]
 pipeline-guardian = "pipeline_guardian.cli:main"
 pg = "pipeline_guardian.cli:main"
+pg-server = "pipeline_guardian.server:main"
 
 [project.urls]
 Homepage = "https://github.com/your-org/pipeline-guardian"

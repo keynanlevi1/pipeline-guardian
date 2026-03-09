@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pipeline Guardian</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-tertiary: #1a1a25;
+            --bg-hover: #22222f;
+            --accent-blue: #3b82f6;
+            --accent-purple: #8b5cf6;
+            --accent-green: #10b981;
+            --accent-orange: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-cyan: #06b6d4;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-color: #2a2a3a;
+            --gradient-1: linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%);
+            --gradient-2: linear-gradient(135deg, #10b981 0%, #3b82f6 100%);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100vh; overflow: hidden; }
+
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo-icon {
+            width: 44px;
+            height: 44px;
+            background: var(--gradient-1);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .logo h1 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            background: var(--gradient-1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .logo-subtitle {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .status-indicators {
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-green);
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.warning { background: var(--accent-orange); }
+        .status-dot.error { background: var(--accent-red); }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .new-chat-btn {
+            background: var(--gradient-1);
+            border: none;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .new-chat-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+        }
+
+        /* Main Layout */
+        main {
+            flex: 1;
+            display: flex;
+            max-height: calc(100vh - 70px);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 300px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .sidebar-section {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sidebar-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 0.05em;
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+        }
+
+        /* Quick Stats */
+        .quick-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+        }
+
+        .stat-card {
+            background: var(--bg-tertiary);
+            padding: 0.75rem;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .stat-card:hover {
+            border-color: var(--accent-purple);
+            transform: translateY(-2px);
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .stat-card.running .stat-value { color: var(--accent-blue); }
+        .stat-card.queued .stat-value { color: var(--accent-orange); }
+        .stat-card.failed .stat-value { color: var(--accent-red); }
+        .stat-card.nodes .stat-value { color: var(--accent-green); }
+
+        /* Failed Jobs List */
+        .failed-list {
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .failed-item {
+            padding: 0.6rem 0.85rem;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .failed-item:hover {
+            border-color: var(--accent-red);
+            background: var(--bg-hover);
+        }
+
+        .failed-item-name {
+            font-size: 0.85rem;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .failed-item-meta {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        /* Suggestion buttons */
+        .suggestion-btn {
+            width: 100%;
+            padding: 0.65rem 0.85rem;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            font-family: inherit;
+            font-size: 0.85rem;
+            text-align: left;
+            cursor: pointer;
+            margin-bottom: 0.5rem;
+            transition: all 0.2s;
+        }
+
+        .suggestion-btn:hover {
+            background: var(--bg-hover);
+            border-color: var(--accent-purple);
+            color: var(--text-primary);
+        }
+
+        .suggestion-btn::before {
+            content: '→';
+            margin-right: 0.5rem;
+            opacity: 0.5;
+        }
+
+        /* Chat Area */
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-primary);
+        }
+
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .messages::-webkit-scrollbar { width: 6px; }
+        .messages::-webkit-scrollbar-track { background: transparent; }
+        .messages::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+
+        .message {
+            max-width: 85%;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user { align-self: flex-end; }
+        .message.assistant { align-self: flex-start; }
+
+        .message-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .message-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+        }
+
+        .message.user .message-avatar { background: var(--accent-purple); }
+        .message.assistant .message-avatar { background: var(--gradient-2); }
+
+        .message-content {
+            padding: 1rem 1.25rem;
+            border-radius: 12px;
+            line-height: 1.6;
+        }
+
+        .message.user .message-content {
+            background: var(--accent-purple);
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.assistant .message-content {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-bottom-left-radius: 4px;
+        }
+
+        /* Markdown styling */
+        .message-content h1, .message-content h2, .message-content h3 {
+            margin: 1rem 0 0.5rem;
+            font-weight: 600;
+        }
+        .message-content h2 { font-size: 1.15rem; color: var(--accent-cyan); }
+        .message-content p { margin: 0.5rem 0; }
+        .message-content ul, .message-content ol { margin: 0.5rem 0; padding-left: 1.5rem; }
+        .message-content li { margin: 0.25rem 0; }
+        .message-content code {
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--bg-tertiary);
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+        .message-content pre {
+            background: var(--bg-tertiary);
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 0.75rem 0;
+            max-height: 300px;
+        }
+        .message-content pre code { background: none; padding: 0; }
+        .message-content strong { color: var(--accent-cyan); font-weight: 600; }
+        .message-content a {
+            color: var(--accent-purple);
+            text-decoration: none;
+        }
+
+        /* Debug Result Panel */
+        .debug-panel {
+            background: var(--bg-secondary);
+            border: 1px solid var(--accent-purple);
+            border-radius: 12px;
+            margin: 0.5rem 0;
+            overflow: hidden;
+        }
+
+        .debug-header {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(6, 182, 212, 0.2));
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .debug-header h3 {
+            font-size: 1rem;
+            color: var(--accent-cyan);
+        }
+
+        .debug-body { padding: 1rem; }
+
+        .debug-section {
+            margin-bottom: 1rem;
+        }
+
+        .debug-section-title {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+        }
+
+        .debug-error {
+            background: rgba(239, 68, 68, 0.1);
+            border-left: 3px solid var(--accent-red);
+            padding: 0.75rem;
+            border-radius: 0 8px 8px 0;
+            color: var(--accent-red);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+        }
+
+        .debug-cause {
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .debug-fixes {
+            list-style: none;
+            padding: 0;
+        }
+
+        .debug-fixes li {
+            padding: 0.5rem 0.75rem;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+
+        .debug-fixes li::before {
+            content: '💡';
+            flex-shrink: 0;
+        }
+
+        .confidence-bar {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .confidence-track {
+            flex: 1;
+            height: 8px;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: var(--gradient-1);
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        .confidence-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+            color: var(--accent-cyan);
+        }
+
+        /* Loading */
+        .loading {
+            display: flex;
+            gap: 4px;
+            padding: 1rem;
+        }
+
+        .loading-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--accent-purple);
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out;
+        }
+
+        .loading-dot:nth-child(1) { animation-delay: -0.32s; }
+        .loading-dot:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        /* Input Area */
+        .input-area {
+            padding: 1.5rem 2rem;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+        }
+
+        .input-container {
+            display: flex;
+            gap: 1rem;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .input-wrapper {
+            flex: 1;
+            position: relative;
+        }
+
+        #query-input {
+            width: 100%;
+            padding: 1rem 1.25rem;
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+
+        #query-input:focus {
+            outline: none;
+            border-color: var(--accent-purple);
+        }
+
+        #query-input::placeholder { color: var(--text-muted); }
+
+        #send-btn {
+            padding: 1rem 1.5rem;
+            background: var(--gradient-1);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-family: inherit;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        #send-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(139, 92, 246, 0.3);
+        }
+
+        #send-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Welcome Message */
+        .welcome {
+            text-align: center;
+            padding: 3rem;
+            max-width: 600px;
+            margin: auto;
+        }
+
+        .welcome-icon {
+            font-size: 4rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .welcome h2 {
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+            background: var(--gradient-1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .welcome p {
+            color: var(--text-secondary);
+            line-height: 1.8;
+            margin-bottom: 2rem;
+        }
+
+        .welcome-examples {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            justify-content: center;
+        }
+
+        .welcome-example {
+            padding: 0.6rem 1rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .welcome-example:hover {
+            border-color: var(--accent-purple);
+            color: var(--text-primary);
+            background: var(--bg-hover);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .messages { padding: 1rem; }
+            .message { max-width: 95%; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">
+            <div class="logo-icon">🛡️</div>
+            <div>
+                <h1>Pipeline Guardian</h1>
+                <span class="logo-subtitle">AI-Assisted Debugging</span>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="status-indicators">
+                <div class="status-item">
+                    <span class="status-dot" id="mcp-status"></span>
+                    <span>Jenkins MCP</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-dot" id="ai-status"></span>
+                    <span>AI Ready</span>
+                </div>
+            </div>
+            <button class="new-chat-btn" onclick="clearConversation()">🔄 New Chat</button>
+        </div>
+    </header>
+
+    <main>
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-title">Quick Stats</div>
+                <div class="quick-stats">
+                    <div class="stat-card running" onclick="sendQuery('Show running pipelines')">
+                        <div class="stat-value" id="running-count">-</div>
+                        <div class="stat-label">Running</div>
+                    </div>
+                    <div class="stat-card queued" onclick="sendQuery('What\\'s in the queue?')">
+                        <div class="stat-value" id="queue-count">-</div>
+                        <div class="stat-label">Queued</div>
+                    </div>
+                    <div class="stat-card failed" onclick="sendQuery('Show failed builds today')">
+                        <div class="stat-value" id="failed-count">-</div>
+                        <div class="stat-label">Failed Today</div>
+                    </div>
+                    <div class="stat-card nodes" onclick="sendQuery('Which nodes are offline?')">
+                        <div class="stat-value" id="nodes-count">-</div>
+                        <div class="stat-label">Nodes Online</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-title">Failed Builds (Click to Debug)</div>
+                <div class="failed-list" id="failed-list">
+                    <div class="failed-item" style="opacity: 0.5;">Loading...</div>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-title">Quick Actions</div>
+                <button class="suggestion-btn" onclick="sendSuggestion(this)">Show running pipelines</button>
+                <button class="suggestion-btn" onclick="sendSuggestion(this)">What's in the queue?</button>
+                <button class="suggestion-btn" onclick="sendSuggestion(this)">Show failed builds today</button>
+                <button class="suggestion-btn" onclick="sendSuggestion(this)">Which nodes are offline?</button>
+            </div>
+        </aside>
+
+        <div class="chat-container">
+            <div class="messages" id="messages">
+                <div class="welcome">
+                    <div class="welcome-icon">🛡️</div>
+                    <h2>AI-Powered Pipeline Debugging</h2>
+                    <p>
+                        I connect to your Jenkins MCP Plugin to help diagnose pipeline failures.
+                        Click a failed job in the sidebar or ask me anything about your CI/CD!
+                    </p>
+                    <div class="welcome-examples">
+                        <span class="welcome-example" onclick="sendSuggestion(this)">Show running pipelines</span>
+                        <span class="welcome-example" onclick="sendSuggestion(this)">What failed today?</span>
+                        <span class="welcome-example" onclick="sendSuggestion(this)">Debug my-pipeline</span>
+                        <span class="welcome-example" onclick="sendSuggestion(this)">Offline nodes</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-area">
+                <div class="input-container">
+                    <div class="input-wrapper">
+                        <input type="text" id="query-input" placeholder="Ask about pipelines, failures, or type 'debug <job-name>' for AI analysis..." autofocus>
+                    </div>
+                    <button id="send-btn">
+                        <span>Send</span>
+                        <span>→</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+        // Configure marked
+        const renderer = new marked.Renderer();
+        renderer.link = function(href, title, text) {
+            if (typeof href === 'object') {
+                return `<a href="${href.href}" target="_blank">${href.text}</a>`;
+            }
+            return `<a href="${href}" target="_blank">${text}</a>`;
+        };
+        marked.setOptions({ renderer: renderer });
+
+        const messagesContainer = document.getElementById('messages');
+        const queryInput = document.getElementById('query-input');
+        const sendBtn = document.getElementById('send-btn');
+        let isFirstMessage = true;
+
+        // Load stats
+        async function loadStats() {
+            try {
+                const [running, queue, failed, nodes] = await Promise.all([
+                    fetch('/api/jenkins/running').then(r => r.json()).catch(() => ({ data: [] })),
+                    fetch('/api/jenkins/queue').then(r => r.json()).catch(() => ({ data: [] })),
+                    fetch('/api/jenkins/failed?date=today').then(r => r.json()).catch(() => ({ data: [] })),
+                    fetch('/api/jenkins/nodes').then(r => r.json()).catch(() => ({ data: [] }))
+                ]);
+
+                document.getElementById('running-count').textContent = running.data?.length || 0;
+                document.getElementById('queue-count').textContent = queue.data?.length || 0;
+                document.getElementById('failed-count').textContent = failed.data?.length || 0;
+                
+                const nodeData = nodes.data || [];
+                const onlineNodes = nodeData.filter(n => !n.offline).length;
+                document.getElementById('nodes-count').textContent = onlineNodes;
+
+                // Update MCP status
+                document.getElementById('mcp-status').className = 'status-dot';
+
+                // Load failed builds list
+                const failedList = document.getElementById('failed-list');
+                if (failed.data && failed.data.length > 0) {
+                    failedList.innerHTML = failed.data.slice(0, 8).map(f => `
+                        <div class="failed-item" onclick="debugJob('${f.job_name}')">
+                            <div class="failed-item-name">${f.job_name}</div>
+                            <div class="failed-item-meta">#${f.build_number}</div>
+                        </div>
+                    `).join('');
+                } else {
+                    failedList.innerHTML = '<div class="failed-item" style="opacity: 0.5; cursor: default;">No failures today 🎉</div>';
+                }
+            } catch (e) {
+                console.error('Failed to load stats:', e);
+                document.getElementById('mcp-status').className = 'status-dot error';
+            }
+        }
+
+        function addMessage(content, role) {
+            if (isFirstMessage) {
+                const welcome = messagesContainer.querySelector('.welcome');
+                if (welcome) welcome.remove();
+                isFirstMessage = false;
+            }
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            
+            const avatar = role === 'user' ? '👤' : '🛡️';
+            const name = role === 'user' ? 'You' : 'Guardian';
+            
+            let htmlContent = role === 'assistant' ? marked.parse(content) : content;
+
+            messageDiv.innerHTML = `
+                <div class="message-header">
+                    <div class="message-avatar">${avatar}</div>
+                    <span>${name}</span>
+                </div>
+                <div class="message-content">${htmlContent}</div>
+            `;
+            
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function addDebugResult(data) {
+            if (isFirstMessage) {
+                const welcome = messagesContainer.querySelector('.welcome');
+                if (welcome) welcome.remove();
+                isFirstMessage = false;
+            }
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message assistant';
+            
+            const confidencePercent = Math.round(data.confidence * 100);
+            const confidenceColor = confidencePercent > 70 ? 'var(--accent-green)' : 
+                                   confidencePercent > 40 ? 'var(--accent-orange)' : 'var(--accent-red)';
+
+            messageDiv.innerHTML = `
+                <div class="message-header">
+                    <div class="message-avatar">🛡️</div>
+                    <span>Guardian</span>
+                </div>
+                <div class="debug-panel">
+                    <div class="debug-header">
+                        <span>🔍</span>
+                        <h3>Debug Analysis: ${data.job_name} #${data.build_number}</h3>
+                    </div>
+                    <div class="debug-body">
+                        <div class="debug-section">
+                            <div class="debug-section-title">Error Summary</div>
+                            <div class="debug-error">${data.error_summary}</div>
+                        </div>
+                        <div class="debug-section">
+                            <div class="debug-section-title">Root Cause</div>
+                            <div class="debug-cause">${data.root_cause}</div>
+                        </div>
+                        <div class="debug-section">
+                            <div class="debug-section-title">Suggested Fixes</div>
+                            <ul class="debug-fixes">
+                                ${data.suggested_fixes.map(fix => `<li>${fix}</li>`).join('')}
+                            </ul>
+                        </div>
+                        ${data.related_files.length > 0 ? `
+                        <div class="debug-section">
+                            <div class="debug-section-title">Related Files</div>
+                            <div>${data.related_files.map(f => `<code>${f}</code>`).join(' ')}</div>
+                        </div>
+                        ` : ''}
+                        <div class="debug-section">
+                            <div class="debug-section-title">Confidence</div>
+                            <div class="confidence-bar">
+                                <div class="confidence-track">
+                                    <div class="confidence-fill" style="width: ${confidencePercent}%; background: ${confidenceColor}"></div>
+                                </div>
+                                <span class="confidence-value" style="color: ${confidenceColor}">${confidencePercent}%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function addLoading() {
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'message assistant';
+            loadingDiv.id = 'loading-message';
+            loadingDiv.innerHTML = `
+                <div class="message-header">
+                    <div class="message-avatar">🛡️</div>
+                    <span>Guardian</span>
+                </div>
+                <div class="loading">
+                    <div class="loading-dot"></div>
+                    <div class="loading-dot"></div>
+                    <div class="loading-dot"></div>
+                </div>
+            `;
+            messagesContainer.appendChild(loadingDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function removeLoading() {
+            const loading = document.getElementById('loading-message');
+            if (loading) loading.remove();
+        }
+
+        async function debugJob(jobName) {
+            addMessage(`Debug ${jobName}`, 'user');
+            sendBtn.disabled = true;
+            addLoading();
+
+            try {
+                const response = await fetch(`/api/debug/${encodeURIComponent(jobName)}`);
+                const result = await response.json();
+                removeLoading();
+
+                if (result.status === 'success' && result.data) {
+                    addDebugResult(result.data);
+                } else {
+                    addMessage(`❌ Error: ${result.detail || 'Failed to analyze'}`, 'assistant');
+                }
+            } catch (error) {
+                removeLoading();
+                addMessage(`❌ Connection error: ${error.message}`, 'assistant');
+            }
+
+            sendBtn.disabled = false;
+        }
+
+        async function sendQuery(query) {
+            if (!query.trim()) return;
+            
+            addMessage(query, 'user');
+            queryInput.value = '';
+            sendBtn.disabled = true;
+            addLoading();
+
+            // Check if it's a debug command
+            const debugMatch = query.match(/^debug\s+(.+)$/i);
+            if (debugMatch) {
+                removeLoading();
+                await debugJob(debugMatch[1].trim());
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query })
+                });
+
+                const result = await response.json();
+                removeLoading();
+
+                if (result.response) {
+                    addMessage(result.response, 'assistant');
+                } else if (result.error) {
+                    addMessage(`❌ Error: ${result.error}`, 'assistant');
+                } else {
+                    addMessage('Sorry, I could not process that query.', 'assistant');
+                }
+            } catch (error) {
+                removeLoading();
+                addMessage(`❌ Connection error: ${error.message}`, 'assistant');
+            }
+
+            sendBtn.disabled = false;
+            loadStats();
+        }
+
+        async function clearConversation() {
+            try {
+                await fetch('/api/query/clear', { method: 'POST' });
+            } catch (e) {}
+            
+            const messages = document.querySelectorAll('.message');
+            messages.forEach(msg => msg.remove());
+            isFirstMessage = true;
+            
+            // Re-add welcome
+            messagesContainer.innerHTML = `
+                <div class="welcome">
+                    <div class="welcome-icon">🛡️</div>
+                    <h2>AI-Powered Pipeline Debugging</h2>
+                    <p>
+                        I connect to your Jenkins MCP Plugin to help diagnose pipeline failures.
+                        Click a failed job in the sidebar or ask me anything about your CI/CD!
+                    </p>
+                    <div class="welcome-examples">
+                        <span class="welcome-example" onclick="sendSuggestion(this)">Show running pipelines</span>
+                        <span class="welcome-example" onclick="sendSuggestion(this)">What failed today?</span>
+                        <span class="welcome-example" onclick="sendSuggestion(this)">Debug my-pipeline</span>
+                        <span class="welcome-example" onclick="sendSuggestion(this)">Offline nodes</span>
+                    </div>
+                </div>
+            `;
+            
+            queryInput.focus();
+            loadStats();
+        }
+
+        function sendSuggestion(elem) {
+            sendQuery(elem.textContent.trim());
+        }
+
+        // Event listeners
+        sendBtn.addEventListener('click', () => sendQuery(queryInput.value));
+        queryInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendQuery(queryInput.value);
+        });
+
+        // Initial load
+        loadStats();
+        setInterval(loadStats, 30000);
+    </script>
+</body>
+</html>

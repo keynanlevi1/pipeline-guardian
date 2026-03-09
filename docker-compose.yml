@@ -3,6 +3,8 @@ version: '3.8'
 services:
   pipeline-guardian:
     build: .
+    ports:
+      - "8888:8888"
     environment:
       - JENKINS_URL=${JENKINS_URL}
       - JENKINS_USER=${JENKINS_USER}
@@ -14,4 +16,4 @@ services:
       - AI_MODEL=${AI_MODEL:-claude-sonnet-4-20250514}
     volumes:
       - ./src:/app/src
-    command: ["status"]
+    restart: unless-stopped

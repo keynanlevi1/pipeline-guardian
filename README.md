@@ -1,158 +1,153 @@
 # Pipeline Guardian
 
-AI-assisted pipeline debugging tool that connects to Jenkins MCP Plugin for intelligent failure analysis.
+AI-assisted pipeline debugging tool with web dashboard, powered by Jenkins MCP Plugin.
+
+![Pipeline Guardian](screenshot.png)
 
 ## Features
 
-- **MCP Integration**: Connects to Jenkins MCP Plugin endpoint for native CI/CD data access
-- **AI-Powered Debugging**: Uses Claude or GPT to analyze pipeline failures and suggest fixes
-- **Rich CLI**: Beautiful terminal interface with real-time status updates
-- **Error Extraction**: Automatically identifies and contextualizes errors from build logs
-- **Quick Diagnosis**: Get instant insights into why your pipeline failed
+- **Web Dashboard**: Modern chat interface for pipeline debugging
+- **MCP Integration**: Connects to Jenkins MCP Plugin endpoint for native CI/CD data
+- **AI-Powered Debugging**: Uses Claude or GPT to analyze failures and suggest fixes
+- **Real-time Stats**: Running pipelines, queue, failures, node status
+- **Rich CLI**: Terminal interface with the same capabilities
 
-## Installation
+## Quick Start
 
-### Using pip
-
-```bash
-pip install pipeline-guardian
-```
-
-### From source
+### 1. Configure Environment
 
 ```bash
-git clone https://github.com/your-org/pipeline-guardian.git
-cd pipeline-guardian
-pip install -e .
-```
-
-### Using Docker
-
-```bash
-docker build -t pipeline-guardian .
-docker run --env-file .env pipeline-guardian status
-```
-
-## Configuration
-
-Create a `.env` file or set environment variables:
-
-```bash
-# Copy the example
 cp .env.example .env
-
-# Edit with your credentials
-vim .env
+# Edit .env with your credentials
 ```
 
-### Required Settings
-
+Required settings:
 ```bash
-# Jenkins MCP Plugin Connection
 JENKINS_URL=https://jenkins.ctera.dev
 JENKINS_MCP_PATH=/mcp-server/mcp
 JENKINS_USER=your_username
 JENKINS_TOKEN=your_api_token
 
-# AI Provider (choose one)
-AI_PROVIDER=anthropic
+# AI Provider
 ANTHROPIC_API_KEY=sk-ant-...
+# or
+OPENAI_API_KEY=sk-...
 ```
 
-## Usage
-
-### Check Jenkins Status
+### 2. Run Web Dashboard
 
 ```bash
-# Overall status summary
+# Install
+pip install -e .
+
+# Start server
+pg-server
+
+# Open http://localhost:8888
+```
+
+### 3. Run with Docker
+
+```bash
+docker-compose up -d
+# Open http://localhost:8888
+```
+
+## Web Interface
+
+The web dashboard provides:
+
+- **Quick Stats**: Running pipelines, queue size, failures today, online nodes
+- **Failed Builds List**: Click any failed job to trigger AI debugging
+- **Chat Interface**: Ask natural language questions about your CI/CD
+- **AI Debug Panel**: Detailed failure analysis with suggested fixes
+
+### Example Queries
+
+- "Show running pipelines"
+- "What's in the queue?"
+- "Show failed builds today"
+- "Which nodes are offline?"
+- "Debug my-pipeline" - triggers AI analysis
+
+## CLI Interface
+
+```bash
+# Check status
 pg status
 
-# Currently running pipelines
+# View running pipelines
 pg running
 
-# Build queue
-pg queue
-
-# Today's failures
+# View failures
 pg failures
-
-# Yesterday's failures
 pg failures --date yesterday
-```
 
-### Debug Pipeline Failures
-
-```bash
-# AI-assisted debugging for the last failed build
+# AI debugging
 pg debug my-pipeline-job
-
-# Debug a specific build
 pg debug my-pipeline-job --build 123
 
-# Quick one-line diagnosis
+# View logs
+pg logs my-pipeline-job --lines 200
+
+# Quick diagnosis
 pg quick my-pipeline-job
-```
 
-### View Build Logs
-
-```bash
-# View last build logs
-pg logs my-pipeline-job
-
-# View specific build with more lines
-pg logs my-pipeline-job --build 123 --lines 500
-```
-
-### Check Nodes
-
-```bash
-pg nodes
-```
-
-### List Available MCP Tools
-
-```bash
+# List MCP tools
 pg tools
 ```
 
-## Example Output
+## How AI Debugging Works
+
+1. **Fetch**: Gets build console output via Jenkins MCP Plugin
+2. **Extract**: Identifies error patterns and relevant context
+3. **Analyze**: Sends to AI (Claude/GPT) for root cause analysis
+4. **Report**: Returns actionable fixes with confidence score
+
+### Debug Output Example
 
 ```
-$ pg debug my-failing-pipeline
-
-Analyzing failure for: my-failing-pipeline
-
-╭──────────────────────── Pipeline Failure - my-failing-pipeline #456 ────────────────────────╮
-│ npm install failed with exit code 1 - dependency resolution conflict                        │
-╰──────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─────────── Pipeline Failure - my-app #456 ───────────╮
+│ npm install failed - dependency resolution conflict  │
+╰──────────────────────────────────────────────────────╯
 
 Root Cause:
-The build failed because npm encountered a peer dependency conflict between 
-react@18.2.0 and react-dom@17.0.2. The package.json requires incompatible versions.
+Peer dependency conflict between react@18.2.0 and react-dom@17.0.2
 
 Suggested Fixes:
-  1. Update react-dom to version 18.2.0 to match react
-  2. Run 'npm install --legacy-peer-deps' as a temporary workaround
-  3. Check package-lock.json for conflicting transitive dependencies
+  💡 Update react-dom to version 18.2.0
+  💡 Run 'npm install --legacy-peer-deps' temporarily  
+  💡 Check package-lock.json for conflicts
 
-Related Files:
-  - package.json
-  - package-lock.json
+Related Files: package.json, package-lock.json
 
 Confidence: 85%
 ```
 
-## How It Works
+## Architecture
 
-1. **Connect**: Pipeline Guardian connects to your Jenkins MCP Plugin endpoint
-2. **Fetch**: Retrieves build information, console logs, and error context via MCP
-3. **Extract**: Automatically identifies error patterns and relevant context
-4. **Analyze**: Sends extracted information to AI (Claude/GPT) for analysis
-5. **Report**: Presents actionable debugging insights in a clean format
+```
+pipeline-guardian/
+├── src/pipeline_guardian/
+│   ├── __init__.py          # Package exports
+│   ├── config.py             # Settings from env vars
+│   ├── client.py             # MCP client for Jenkins plugin
+│   ├── debugger.py           # AI-powered failure analysis
+│   ├── cli.py                # Rich CLI interface
+│   ├── server.py             # Web server entry point
+│   └── web/
+│       ├── app.py            # FastAPI application
+│       └── static/
+│           └── index.html    # Web dashboard
+├── pyproject.toml
+├── Dockerfile
+├── docker-compose.yml
+└── .env.example
+```
 
 ## Jenkins MCP Plugin
 
-This tool requires the Jenkins MCP Plugin to be installed on your Jenkins server. The plugin exposes an MCP endpoint (typically at `/mcp-server/mcp`) that provides:
+This tool requires the Jenkins MCP Plugin installed on your Jenkins server. The plugin exposes an MCP endpoint (typically at `/mcp-server/mcp`) that provides:
 
 - Running pipeline information
 - Build queue status
@@ -161,38 +156,38 @@ This tool requires the Jenkins MCP Plugin to be installed on your Jenkins server
 - Node/agent status
 - Job configuration
 
-## CLI Commands Reference
+## API Endpoints
 
-| Command | Description |
-|---------|-------------|
-| `pg status` | Show overall Jenkins status summary |
-| `pg running` | List currently running pipelines |
-| `pg queue` | Show build queue |
-| `pg failures` | List failed builds (default: today) |
-| `pg nodes` | Show Jenkins nodes/agents |
-| `pg tools` | List available MCP tools |
-| `pg debug <job>` | AI-assisted failure analysis |
-| `pg quick <job>` | Quick one-line diagnosis |
-| `pg logs <job>` | View build console output |
+| Endpoint | Description |
+|----------|-------------|
+| `GET /` | Web dashboard |
+| `POST /api/query` | Natural language query |
+| `POST /api/debug` | AI debugging analysis |
+| `GET /api/debug/{job_name}` | Debug specific job |
+| `GET /api/jenkins/running` | Running pipelines |
+| `GET /api/jenkins/queue` | Build queue |
+| `GET /api/jenkins/failed` | Failed builds |
+| `GET /api/jenkins/nodes` | Node status |
+| `GET /api/mcp/tools` | Available MCP tools |
 
 ## Development
 
 ```bash
-# Clone the repo
-git clone https://github.com/your-org/pipeline-guardian.git
+# Clone
+git clone https://github.com/keynanlevi1/pipeline-guardian.git
 cd pipeline-guardian
 
-# Create virtual environment
+# Create venv
 python -m venv venv
 source venv/bin/activate
 
-# Install with dev dependencies
+# Install with dev deps
 pip install -e ".[dev]"
 
 # Run tests
 pytest
 
-# Lint code
+# Lint
 ruff check src/
 mypy src/
 ```

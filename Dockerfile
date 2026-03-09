@@ -2,15 +2,15 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install dependencies
+# Copy source first for better caching
 COPY pyproject.toml ./
-RUN pip install --no-cache-dir .
-
-# Copy source
 COPY src/ ./src/
 
 # Install the package
 RUN pip install --no-cache-dir -e .
 
-ENTRYPOINT ["pipeline-guardian"]
-CMD ["--help"]
+# Expose port
+EXPOSE 8888
+
+# Run web server by default
+CMD ["pg-server"]
