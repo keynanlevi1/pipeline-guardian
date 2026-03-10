@@ -182,22 +182,42 @@ For Jenkinsfile requests, use github_get_file with path "Jenkinsfile" (or the jo
         except asyncio.TimeoutError:
             raise TimeoutError("Request timed out after 1 minute. Please try a simpler question or click 'New Chat' to clear history.")
 
-        # Try to parse the entire response as JSON first
+        # Extract first JSON object by tracking braces
         text = text.strip()
-        try:
-            parsed = json.loads(text)
-            if isinstance(parsed, dict) and ("tools" in parsed or "response" in parsed):
-                return parsed
-        except json.JSONDecodeError:
-            pass
         
-        # Try to extract JSON from markdown code blocks
-        import re
-        code_block = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', text, re.DOTALL)
-        if code_block:
+        def extract_first_json(s: str) -> str | None:
+            """Extract first complete JSON object from string."""
+            start = s.find('{')
+            if start == -1:
+                return None
+            depth = 0
+            in_string = False
+            escape = False
+            for i, c in enumerate(s[start:]):
+                if escape:
+                    escape = False
+                    continue
+                if c == '\\' and in_string:
+                    escape = True
+                    continue
+                if c == '"' and not escape:
+                    in_string = not in_string
+                    continue
+                if in_string:
+                    continue
+                if c == '{':
+                    depth += 1
+                elif c == '}':
+                    depth -= 1
+                    if depth == 0:
+                        return s[start:start + i + 1]
+            return None
+        
+        json_str = extract_first_json(text)
+        if json_str:
             try:
-                parsed = json.loads(code_block.group(1))
-                if isinstance(parsed, dict):
+                parsed = json.loads(json_str)
+                if isinstance(parsed, dict) and ("tools" in parsed or "response" in parsed):
                     return parsed
             except json.JSONDecodeError:
                 pass
@@ -233,19 +253,28 @@ Data:
         
         # Strip any JSON wrapper if the LLM still outputs it
         response = response.strip()
-        if response.startswith('{"') or response.startswith('```'):
+        if response.startswith('{'):
             try:
-                # Try to extract from JSON
-                import re
-                json_match = re.search(r'"response"\s*:\s*"([^"]*)"', response)
-                if json_match:
-                    return json_match.group(1).replace('\\n', '\n')
-                # Try to extract from code block
-                code_match = re.search(r'```(?:json)?\s*\{.*?"response"\s*:\s*"([^"]*)"\s*\}.*?```', response, re.DOTALL)
-                if code_match:
-                    return code_match.group(1).replace('\\n', '\n')
-            except:
+                parsed = json.loads(response)
+                if isinstance(parsed, dict) and "response" in parsed:
+                    return parsed["response"]
+            except json.JSONDecodeError:
                 pass
+        
+        # Remove code block wrapper if present
+        if response.startswith('```'):
+            import re
+            match = re.search(r'```(?:json|markdown)?\s*(.*?)\s*```', response, re.DOTALL)
+            if match:
+                inner = match.group(1).strip()
+                if inner.startswith('{'):
+                    try:
+                        parsed = json.loads(inner)
+                        if isinstance(parsed, dict) and "response" in parsed:
+                            return parsed["response"]
+                    except:
+                        pass
+                return inner
         
         return response
 
