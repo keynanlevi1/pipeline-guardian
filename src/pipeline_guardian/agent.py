@@ -139,6 +139,34 @@ For Jenkinsfile requests, use github_get_file with path "Jenkinsfile" (or the jo
             )
             return response.choices[0].message.content or ""
 
+    def _call_llm_format(self, prompt: str) -> str:
+        """Call LLM for formatting (no JSON, plain text output)."""
+        client = self._get_ai_client()
+        format_system = "You are a helpful assistant. Format data clearly using markdown. Be concise. Output plain text only, no JSON."
+
+        if self.settings.ai_provider == "anthropic":
+            response = client.messages.create(
+                model=self.settings.ai_model,
+                max_tokens=1000,
+                system=format_system,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            return response.content[0].text
+        elif self.settings.ai_provider == "azure_foundry":
+            from azure.ai.inference.models import SystemMessage, UserMessage
+            response = client.complete(
+                messages=[SystemMessage(content=format_system), UserMessage(content=prompt)],
+                model=self.settings.azure_foundry_model,
+            )
+            return response.choices[0].message.content or ""
+        else:
+            response = client.chat.completions.create(
+                model=self.settings.azure_openai_deployment if self.settings.ai_provider == "azure" else self.settings.ai_model,
+                max_tokens=1000,
+                messages=[{"role": "system", "content": format_system}, {"role": "user", "content": prompt}],
+            )
+            return response.choices[0].message.content or ""
+
     async def _call_llm(self, user_query: str) -> dict[str, Any]:
         """Call LLM to determine which tools to use."""
         loop = asyncio.get_event_loop()
@@ -149,10 +177,10 @@ For Jenkinsfile requests, use github_get_file with path "Jenkinsfile" (or the jo
         try:
             text = await asyncio.wait_for(
                 loop.run_in_executor(None, call_sync),
-                timeout=120.0
+                timeout=60.0
             )
         except asyncio.TimeoutError:
-            raise TimeoutError("Request timed out after 2 minutes. The query may be too complex or the AI service is slow. Please try a simpler question.")
+            raise TimeoutError("Request timed out after 1 minute. Please try a simpler question or click 'New Chat' to clear history.")
 
         # Try to parse the entire response as JSON first
         text = text.strip()
@@ -181,35 +209,41 @@ For Jenkinsfile requests, use github_get_file with path "Jenkinsfile" (or the jo
         """Use LLM to format tool results into a nice response."""
         results_text = json.dumps(tool_results, indent=2, default=str)
         
-        prompt = f"""Format this Jenkins data as a helpful response. Use markdown. Be concise.
+        prompt = f"""Format this data as a helpful response for the user. Use markdown for formatting.
 
-User question: {query}
+Question: {query}
 
 Data:
-{results_text}
-
-IMPORTANT: Respond with plain text/markdown ONLY. Do NOT wrap your response in JSON."""
+{results_text}"""
 
         loop = asyncio.get_event_loop()
         
         def call_sync():
-            # Don't include history for formatting, use fresh context
-            return self._call_llm_sync([{"role": "user", "content": prompt}], include_history=False)
+            # Use a simple formatting prompt without JSON instructions
+            return self._call_llm_format(prompt)
         
         try:
             response = await asyncio.wait_for(
                 loop.run_in_executor(None, call_sync),
-                timeout=120.0
+                timeout=60.0
             )
         except asyncio.TimeoutError:
-            raise TimeoutError("Request timed out after 2 minutes while formatting results. Please try again.")
+            # Fallback: return raw data summary
+            return f"**Query**: {query}\n\n**Results**:\n```json\n{results_text}\n```"
         
         # Strip any JSON wrapper if the LLM still outputs it
-        if response.strip().startswith('{"'):
+        response = response.strip()
+        if response.startswith('{"') or response.startswith('```'):
             try:
-                parsed = json.loads(response)
-                if "response" in parsed:
-                    return parsed["response"]
+                # Try to extract from JSON
+                import re
+                json_match = re.search(r'"response"\s*:\s*"([^"]*)"', response)
+                if json_match:
+                    return json_match.group(1).replace('\\n', '\n')
+                # Try to extract from code block
+                code_match = re.search(r'```(?:json)?\s*\{.*?"response"\s*:\s*"([^"]*)"\s*\}.*?```', response, re.DOTALL)
+                if code_match:
+                    return code_match.group(1).replace('\\n', '\n')
             except:
                 pass
         
