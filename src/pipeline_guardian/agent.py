@@ -27,6 +27,7 @@ JENKINS TOOLS:
 - get_nodes: Get Jenkins nodes (no params)
 - list_jobs: List all jobs (no params)
 - get_job_details: Get job info (params: {"job_name": "string"})
+- get_job_config: Get job SCM/Git configuration (params: {"job_name": "string"}) - USE THIS FOR SCM INFO
 - get_build_details: Get build info (params: {"job_name": "string", "build_number": integer})
 - get_build_console: Get build logs (params: {"job_name": "string", "build_number": integer, "tail_lines": integer})
 

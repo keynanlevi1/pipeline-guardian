@@ -135,6 +135,62 @@ class JenkinsAPIClient:
         except Exception as e:
             return MCPToolResult("get_job_details", False, None, str(e))
 
+    async def get_job_config(self, job_name: str) -> MCPToolResult:
+        """Get job configuration including SCM details."""
+        try:
+            import re
+            url = f"{self.base_url}/job/{job_name}/config.xml"
+            async with httpx.AsyncClient(verify=False, timeout=30.0) as client:
+                response = await client.get(url, auth=self.auth)
+                response.raise_for_status()
+                config_xml = response.text
+
+            text = f"⚙️ JOB CONFIG: {job_name}\n\n"
+            
+            # Extract SCM/Git info
+            git_urls = re.findall(r'<url>([^<]*github[^<]*)</url>', config_xml, re.IGNORECASE)
+            git_urls += re.findall(r'<userRemoteConfigs>.*?<url>([^<]+)</url>', config_xml, re.DOTALL)
+            
+            if git_urls:
+                text += "📦 SCM/Git Configuration:\n"
+                seen = set()
+                for url in git_urls:
+                    url = url.strip()
+                    if url and url not in seen:
+                        seen.add(url)
+                        # Parse owner/repo from URL
+                        match = re.search(r'github\.com[:/]([^/]+)/([^/.]+)', url)
+                        if match:
+                            owner, repo = match.groups()
+                            text += f"  • Repository: {owner}/{repo}\n"
+                            text += f"  • URL: {url}\n"
+                        else:
+                            text += f"  • URL: {url}\n"
+            
+            # Extract branch info
+            branches = re.findall(r'<name>\*/([^<]+)</name>', config_xml)
+            branches += re.findall(r'<branchSpec>.*?<name>([^<]+)</name>', config_xml, re.DOTALL)
+            if branches:
+                text += f"  • Branch: {', '.join(set(branches))}\n"
+            
+            # Extract Jenkinsfile path
+            script_paths = re.findall(r'<scriptPath>([^<]+)</scriptPath>', config_xml)
+            if script_paths:
+                text += f"  • Jenkinsfile: {script_paths[0]}\n"
+            
+            # Extract pipeline definition type
+            if '<definition class="org.jenkinsci.plugins.workflow.cps.CpsScmFlowDefinition"' in config_xml:
+                text += "  • Type: Pipeline from SCM\n"
+            elif '<definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition"' in config_xml:
+                text += "  • Type: Inline Pipeline Script\n"
+            
+            if "SCM/Git" not in text:
+                text += "No SCM/Git configuration found in this job.\n"
+            
+            return MCPToolResult("get_job_config", True, text)
+        except Exception as e:
+            return MCPToolResult("get_job_config", False, None, str(e))
+
     async def get_build_details(self, job_name: str, build_number: int) -> MCPToolResult:
         try:
             data = await self._request(f"/job/{job_name}/{build_number}/api/json")
@@ -179,6 +235,8 @@ class JenkinsAPIClient:
             )
         elif name == "get_job_details":
             return await self.get_job_details(arguments.get("job_name", ""))
+        elif name == "get_job_config":
+            return await self.get_job_config(arguments.get("job_name", ""))
         elif name == "get_build_details":
             return await self.get_build_details(
                 arguments.get("job_name", ""),
