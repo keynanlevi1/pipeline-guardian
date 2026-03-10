@@ -154,29 +154,27 @@ For Jenkinsfile requests, use github_get_file with path "Jenkinsfile" (or the jo
         except asyncio.TimeoutError:
             raise TimeoutError("Request timed out after 2 minutes. The query may be too complex or the AI service is slow. Please try a simpler question.")
 
-        # Parse JSON from response - find the outermost JSON object
+        # Try to parse the entire response as JSON first
+        text = text.strip()
         try:
-            # Look for JSON that starts with {"tools"
-            import re
-            match = re.search(r'\{"tools"\s*:', text)
-            if match:
-                start = match.start()
-                # Find matching closing brace
-                depth = 0
-                end = start
-                for i, c in enumerate(text[start:]):
-                    if c == '{':
-                        depth += 1
-                    elif c == '}':
-                        depth -= 1
-                        if depth == 0:
-                            end = start + i + 1
-                            break
-                if end > start:
-                    return json.loads(text[start:end])
+            parsed = json.loads(text)
+            if isinstance(parsed, dict) and ("tools" in parsed or "response" in parsed):
+                return parsed
         except json.JSONDecodeError:
             pass
+        
+        # Try to extract JSON from markdown code blocks
+        import re
+        code_block = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', text, re.DOTALL)
+        if code_block:
+            try:
+                parsed = json.loads(code_block.group(1))
+                if isinstance(parsed, dict):
+                    return parsed
+            except json.JSONDecodeError:
+                pass
 
+        # Fallback: treat entire text as plain response
         return {"tools": [], "response": text}
 
     async def _format_results(self, query: str, tool_results: list[dict]) -> str:
@@ -228,6 +226,14 @@ IMPORTANT: Respond with plain text/markdown ONLY. Do NOT wrap your response in J
         # If LLM gave a direct response without tools
         if not llm_response.get("tools") and llm_response.get("response"):
             response = llm_response["response"]
+            # Failsafe: if response is still JSON, extract the text
+            if isinstance(response, str) and response.strip().startswith('{"'):
+                try:
+                    inner = json.loads(response)
+                    if isinstance(inner, dict) and "response" in inner:
+                        response = inner["response"]
+                except:
+                    pass
             self.conversation_history.append({"role": "assistant", "content": response})
             return response
 

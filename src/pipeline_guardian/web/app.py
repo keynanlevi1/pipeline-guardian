@@ -127,11 +127,9 @@ async def get_failed_builds(
         if result.success:
             content = result.content
             if isinstance(content, str):
-                count = parse_count_from_text(content, r'\((\d+)\s+failures?\)')
+                count = parse_count_from_text(content, r'\((\d+)\s+total\)')
                 if count == 0:
-                    count = parse_count_from_text(content, r'(\d+)\s+failed\s+builds?')
-                if count == 0:
-                    count = parse_count_from_text(content, r'Found\s+(\d+)')
+                    count = parse_count_from_text(content, r'\((\d+)\s+failures?\)')
                 return {"status": "success", "data": [], "count": count, "text": content}
             return {"status": "success", "data": content if isinstance(content, list) else []}
         raise HTTPException(status_code=500, detail=result.error)

@@ -117,6 +117,51 @@ class JenkinsAPIClient:
         except Exception as e:
             return MCPToolResult("get_build_console", False, None, str(e))
 
+    async def get_job_details(self, job_name: str) -> MCPToolResult:
+        try:
+            data = await self._request(f"/job/{job_name}/api/json")
+            text = f"📋 JOB: {job_name}\n\n"
+            text += f"Description: {data.get('description', 'None')}\n"
+            text += f"URL: {data.get('url', '')}\n"
+            text += f"Buildable: {data.get('buildable', False)}\n"
+            text += f"In Queue: {data.get('inQueue', False)}\n"
+            if data.get('lastBuild'):
+                text += f"Last Build: #{data['lastBuild']['number']}\n"
+            if data.get('lastSuccessfulBuild'):
+                text += f"Last Success: #{data['lastSuccessfulBuild']['number']}\n"
+            if data.get('lastFailedBuild'):
+                text += f"Last Failure: #{data['lastFailedBuild']['number']}\n"
+            return MCPToolResult("get_job_details", True, text)
+        except Exception as e:
+            return MCPToolResult("get_job_details", False, None, str(e))
+
+    async def get_build_details(self, job_name: str, build_number: int) -> MCPToolResult:
+        try:
+            data = await self._request(f"/job/{job_name}/{build_number}/api/json")
+            text = f"🔧 BUILD: {job_name} #{build_number}\n\n"
+            text += f"Result: {data.get('result', 'UNKNOWN')}\n"
+            text += f"Duration: {data.get('duration', 0) // 1000}s\n"
+            text += f"Building: {data.get('building', False)}\n"
+            if data.get('timestamp'):
+                build_time = datetime.fromtimestamp(data['timestamp'] / 1000)
+                text += f"Started: {build_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+            return MCPToolResult("get_build_details", True, text)
+        except Exception as e:
+            return MCPToolResult("get_build_details", False, None, str(e))
+
+    async def list_jobs(self) -> MCPToolResult:
+        try:
+            data = await self._request("/api/json?tree=jobs[name,color]")
+            jobs = data.get("jobs", [])
+            text = f"📋 JENKINS JOBS ({len(jobs)} total)\n\n"
+            for job in jobs[:50]:
+                color = job.get("color", "unknown")
+                icon = "🟢" if color.startswith("blue") else "🔴" if color.startswith("red") else "🟡"
+                text += f"{icon} {job['name']}\n"
+            return MCPToolResult("list_jobs", True, text)
+        except Exception as e:
+            return MCPToolResult("list_jobs", False, None, str(e))
+
     async def call_tool(self, name: str, arguments: dict) -> MCPToolResult:
         if name == "get_running_pipelines":
             return await self.get_running_pipelines()
@@ -132,6 +177,15 @@ class JenkinsAPIClient:
                 arguments.get("build_number", 0),
                 arguments.get("tail_lines", 500)
             )
+        elif name == "get_job_details":
+            return await self.get_job_details(arguments.get("job_name", ""))
+        elif name == "get_build_details":
+            return await self.get_build_details(
+                arguments.get("job_name", ""),
+                arguments.get("build_number", 0)
+            )
+        elif name == "list_jobs":
+            return await self.list_jobs()
         else:
             return MCPToolResult(name, False, None, f"Unknown tool: {name}")
 
