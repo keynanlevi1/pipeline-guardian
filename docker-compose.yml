@@ -1,19 +1,31 @@
 version: '3.8'
 
 services:
-  pipeline-guardian:
+  pipelines-guardian:
     build: .
+    container_name: pipelines-guardian
     ports:
       - "8888:8888"
     environment:
+      # Jenkins Configuration
       - JENKINS_URL=${JENKINS_URL}
       - JENKINS_USER=${JENKINS_USER}
       - JENKINS_TOKEN=${JENKINS_TOKEN}
-      - JENKINS_MCP_PATH=${JENKINS_MCP_PATH:-/mcp-server/mcp}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - AI_PROVIDER=${AI_PROVIDER:-anthropic}
-      - AI_MODEL=${AI_MODEL:-claude-sonnet-4-20250514}
-    volumes:
-      - ./src:/app/src
+      - JENKINS_API_TOKEN=${JENKINS_TOKEN}
+      - JENKINS_MCP_COMMAND=jenkins-mcp
+      
+      # Azure AI Foundry Configuration
+      - AI_PROVIDER=azure_foundry
+      - AZURE_FOUNDRY_KEY=${AZURE_FOUNDRY_KEY}
+      - AZURE_FOUNDRY_ENDPOINT=${AZURE_FOUNDRY_ENDPOINT}
+      - AZURE_FOUNDRY_MODEL=${AZURE_FOUNDRY_MODEL:-gpt-5.2-chat}
+      
+      # GitHub Configuration
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8888/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

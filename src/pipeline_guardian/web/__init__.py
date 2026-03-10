@@ -1,1 +1,1 @@
-"""Web application for Pipeline Guardian."""
+"""Web application for Pipelines Guardian."""

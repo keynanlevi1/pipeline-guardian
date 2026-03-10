@@ -2,15 +2,26 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Copy source first for better caching
-COPY pyproject.toml ./
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy and install Python package
+COPY pyproject.toml README.md ./
 COPY src/ ./src/
 
-# Install the package
 RUN pip install --no-cache-dir -e .
+
+# Install jenkins-mcp CLI
+RUN pip install --no-cache-dir jenkins-mcp
 
 # Expose port
 EXPOSE 8888
 
-# Run web server by default
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8888/api/health || exit 1
+
+# Run web server
 CMD ["pg-server"]

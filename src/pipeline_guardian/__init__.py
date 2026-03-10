@@ -1,4 +1,4 @@
-"""Pipeline Guardian - AI-assisted pipeline debugging using Jenkins MCP Plugin."""
+"""Pipelines Guardian - AI-assisted pipeline debugging using Jenkins MCP Plugin."""
 
 __version__ = "0.1.0"
 

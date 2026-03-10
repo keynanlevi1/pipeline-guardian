@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pipeline Guardian</title>
+    <title>Pipelines Guardian</title>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -617,7 +617,7 @@
         <div class="logo">
             <div class="logo-icon">🛡️</div>
             <div>
-                <h1>Pipeline Guardian</h1>
+                <h1>Pipelines Guardian</h1>
                 <span class="logo-subtitle">AI-Assisted Debugging</span>
             </div>
         </div>
@@ -729,26 +729,33 @@
         async function loadStats() {
             try {
                 const [running, queue, failed, nodes] = await Promise.all([
-                    fetch('/api/jenkins/running').then(r => r.json()).catch(() => ({ data: [] })),
-                    fetch('/api/jenkins/queue').then(r => r.json()).catch(() => ({ data: [] })),
-                    fetch('/api/jenkins/failed?date=today').then(r => r.json()).catch(() => ({ data: [] })),
-                    fetch('/api/jenkins/nodes').then(r => r.json()).catch(() => ({ data: [] }))
+                    fetch('/api/jenkins/running').then(r => r.json()).catch(() => ({})),
+                    fetch('/api/jenkins/queue').then(r => r.json()).catch(() => ({})),
+                    fetch('/api/jenkins/failed?date=today').then(r => r.json()).catch(() => ({})),
+                    fetch('/api/jenkins/nodes').then(r => r.json()).catch(() => ({}))
                 ]);
 
-                document.getElementById('running-count').textContent = running.data?.length || 0;
-                document.getElementById('queue-count').textContent = queue.data?.length || 0;
-                document.getElementById('failed-count').textContent = failed.data?.length || 0;
-                
-                const nodeData = nodes.data || [];
-                const onlineNodes = nodeData.filter(n => !n.offline).length;
-                document.getElementById('nodes-count').textContent = onlineNodes;
+                // Use count field if available (for text responses), otherwise array length
+                document.getElementById('running-count').textContent = 
+                    running.count !== undefined ? running.count : (running.data?.length || 0);
+                document.getElementById('queue-count').textContent = 
+                    queue.count !== undefined ? queue.count : (queue.data?.length || 0);
+                document.getElementById('failed-count').textContent = 
+                    failed.count !== undefined ? failed.count : (failed.data?.length || 0);
+                document.getElementById('nodes-count').textContent = 
+                    nodes.count !== undefined ? nodes.count : (nodes.data?.filter(n => !n.offline).length || 0);
 
                 // Update MCP status
                 document.getElementById('mcp-status').className = 'status-dot';
 
-                // Load failed builds list
+                // For failed builds list, show message about text mode
                 const failedList = document.getElementById('failed-list');
-                if (failed.data && failed.data.length > 0) {
+                if (failed.count > 0) {
+                    failedList.innerHTML = `<div class="failed-item" style="opacity: 0.7; cursor: default;">
+                        <div class="failed-item-name">${failed.count} failures today</div>
+                        <div class="failed-item-meta">Ask "show failed builds" for details</div>
+                    </div>`;
+                } else if (failed.data && failed.data.length > 0) {
                     failedList.innerHTML = failed.data.slice(0, 8).map(f => `
                         <div class="failed-item" onclick="debugJob('${f.job_name}')">
                             <div class="failed-item-name">${f.job_name}</div>

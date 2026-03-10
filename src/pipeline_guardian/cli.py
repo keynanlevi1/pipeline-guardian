@@ -1,4 +1,4 @@
-"""CLI interface for Pipeline Guardian."""
+"""CLI interface for Pipelines Guardian."""
 
 import asyncio
 import click
@@ -28,7 +28,7 @@ def async_command(f):
 @click.option("--jenkins-token", envvar="JENKINS_TOKEN", help="Jenkins API token")
 @click.pass_context
 def cli(ctx, jenkins_url, jenkins_user, jenkins_token):
-    """Pipeline Guardian - AI-assisted pipeline debugging using Jenkins MCP Plugin."""
+    """Pipelines Guardian - AI-assisted pipeline debugging using Jenkins MCP Plugin."""
     ctx.ensure_object(dict)
 
     # Build settings from CLI args and env

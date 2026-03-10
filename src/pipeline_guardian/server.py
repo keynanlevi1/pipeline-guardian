@@ -1,10 +1,10 @@
-"""Server entry point for Pipeline Guardian web application."""
+"""Server entry point for Pipelines Guardian web application."""
 
 import uvicorn
 
 
 def main():
-    """Run the Pipeline Guardian web server."""
+    """Run the Pipelines Guardian web server."""
     uvicorn.run(
         "pipeline_guardian.web.app:app",
         host="0.0.0.0",

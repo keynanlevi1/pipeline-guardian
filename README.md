@@ -1,8 +1,8 @@
-# Pipeline Guardian
+# Pipelines Guardian
 
 AI-assisted pipeline debugging tool with web dashboard, powered by Jenkins MCP Plugin.
 
-![Pipeline Guardian](screenshot.png)
+![Pipelines Guardian](screenshot.png)
 
 ## Features
 

@@ -8,14 +8,14 @@ from typing import Optional
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
-    # Jenkins MCP Plugin settings
+    # Jenkins MCP Server settings
     jenkins_url: str = Field(
         default="https://jenkins.example.com",
         description="Jenkins server URL",
     )
-    jenkins_mcp_path: str = Field(
-        default="/mcp-server/mcp",
-        description="Path to Jenkins MCP endpoint",
+    jenkins_mcp_command: str = Field(
+        default="jenkins-mcp",
+        description="Path to Jenkins MCP server executable",
     )
     jenkins_user: Optional[str] = Field(
         default=None,
@@ -28,8 +28,8 @@ class Settings(BaseSettings):
 
     # AI Provider settings
     ai_provider: str = Field(
-        default="anthropic",
-        description="AI provider: 'anthropic' or 'openai'",
+        default="azure_foundry",
+        description="AI provider: 'anthropic', 'openai', 'azure', or 'azure_foundry'",
     )
     anthropic_api_key: Optional[str] = Field(
         default=None,
@@ -39,9 +39,44 @@ class Settings(BaseSettings):
         default=None,
         description="OpenAI API key for GPT models",
     )
+    azure_openai_key: Optional[str] = Field(
+        default=None,
+        description="Azure OpenAI API key",
+    )
+    azure_openai_base: Optional[str] = Field(
+        default=None,
+        description="Azure OpenAI endpoint base URL",
+    )
+    azure_openai_version: str = Field(
+        default="2024-12-01-preview",
+        description="Azure OpenAI API version",
+    )
+    azure_openai_deployment: str = Field(
+        default="gpt-4",
+        description="Azure OpenAI deployment name",
+    )
+    # Azure AI Foundry settings
+    azure_foundry_key: Optional[str] = Field(
+        default=None,
+        description="Azure AI Foundry API key",
+    )
+    azure_foundry_endpoint: str = Field(
+        default="https://ctera-devops-resources.services.ai.azure.com/models",
+        description="Azure AI Foundry models endpoint",
+    )
+    azure_foundry_model: str = Field(
+        default="gpt-5.2-chat",
+        description="Azure AI Foundry model name",
+    )
     ai_model: str = Field(
-        default="claude-sonnet-4-20250514",
+        default="gpt-4",
         description="AI model to use for analysis",
+    )
+
+    # GitHub settings
+    github_token: Optional[str] = Field(
+        default=None,
+        description="GitHub Personal Access Token",
     )
 
     # Debugging settings
@@ -53,13 +88,6 @@ class Settings(BaseSettings):
         default=10,
         description="Context lines around errors",
     )
-
-    @property
-    def jenkins_mcp_url(self) -> str:
-        """Full URL to Jenkins MCP endpoint."""
-        base = self.jenkins_url.rstrip("/")
-        path = self.jenkins_mcp_path.lstrip("/")
-        return f"{base}/{path}"
 
     model_config = {
         "env_prefix": "",
